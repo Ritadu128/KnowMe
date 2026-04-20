@@ -1,7 +1,10 @@
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 import { SUMMARY_PROMPT, MODES } from '@/lib/constants'
 
-const client = new Anthropic()
+const client = new OpenAI({
+  baseURL: 'https://api.deepseek.com',
+  apiKey: process.env.DEEPSEEK_API_KEY,
+})
 
 export async function POST(request: Request) {
   const { messages, mode } = await request.json()
@@ -11,18 +14,15 @@ export async function POST(request: Request) {
     .map((m: { role: string; content: string }) => `${m.role === 'user' ? '用户' : '知我'}: ${m.content}`)
     .join('\n\n')
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+  const response = await client.chat.completions.create({
+    model: 'deepseek-chat',
     max_tokens: 800,
     messages: [
-      {
-        role: 'user',
-        content: SUMMARY_PROMPT + `模式：${modeObj?.label || mode}\n\n` + convo,
-      },
+      { role: 'user', content: SUMMARY_PROMPT + `模式：${modeObj?.label || mode}\n\n` + convo },
     ],
   })
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : ''
+  const text = response.choices[0].message.content || ''
   const match = text.match(/\{[\s\S]*\}/)
 
   if (!match) {
